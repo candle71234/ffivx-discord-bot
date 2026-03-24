@@ -31,22 +31,39 @@ async def ping(ctx):
     """測試機器人是否在線"""
     await ctx.send("pong")
 
-
-
+# 仙人仙彩提醒：每週六 20:30
 @tasks.loop(time=time(hour=20, minute=30, tzinfo=TAIWAN_TZ))
 async def cactpot_task():
     now = datetime.now(TAIWAN_TZ)
 
     if now.weekday() == 5:  # 星期六
-        print("該提醒了")
-        # 在特定頻道PING特定身分組
+        print("仙人仙彩提醒觸發")
         channel = bot.get_channel(TARGET_CHANNEL_ID)
-        await channel.send(f"<@&{TARGET_ROLE_ID}> 記得去抽獎！")
+        if channel:
+            await channel.send(f"<@&{TARGET_ROLE_ID}> 記得去抽獎！")
+
+
+# 天書奇談 / 老主顧提醒：每週二 15:00
+@tasks.loop(time=time(hour=15, minute=0, tzinfo=TAIWAN_TZ))
+async def reset_notice_task():
+    now = datetime.now(TAIWAN_TZ)
+
+    if now.weekday() == 1:  # 星期二
+        print("天書奇談 / 老主顧提醒觸發")
+        channel = bot.get_channel(TARGET_CHANNEL_ID)
+        if channel:
+            await channel.send(f"<@&{TARGET_ROLE_ID}> 天書奇談跟老主顧再一個小時刷新")
+
 
 @cactpot_task.before_loop
-async def before():
+async def before_cactpot():
     await bot.wait_until_ready()
 
+
+@reset_notice_task.before_loop
+async def before_reset_notice():
+    await bot.wait_until_ready()
+    
 
 @bot.event
 async def on_ready():
