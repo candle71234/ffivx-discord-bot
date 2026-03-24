@@ -33,11 +33,11 @@ async def ping(ctx):
 
 
 
-@tasks.loop(time=time(hour=11, minute=30, tzinfo=TAIWAN_TZ))
+@tasks.loop(time=time(hour=20, minute=30, tzinfo=TAIWAN_TZ))
 async def cactpot_task():
     now = datetime.now(TAIWAN_TZ)
 
-    if now.weekday() == 1:  # 星期六
+    if now.weekday() == 5:  # 星期六
         print("該提醒了")
         # 在特定頻道PING特定身分組
         channel = bot.get_channel(TARGET_CHANNEL_ID)
