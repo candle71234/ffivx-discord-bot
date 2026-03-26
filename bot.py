@@ -7,8 +7,8 @@ from discord.ext import commands
 from discord.ext import tasks
 
 # 本地用
-#from dotenv import load_dotenv
-#load_dotenv()
+from dotenv import load_dotenv
+load_dotenv()
 
 # 抓時間 & 設定時區
 from datetime import time, datetime, timedelta
@@ -139,7 +139,21 @@ async def before_reset_notice():
 
 # 預約潛水艇提醒 !sub !submarine
 @bot.command(aliases=["sub", "submaine"])
-async def submarine(ctx, *, duration: str):
+async def submarine(ctx, *, duration: str = None):
+    if not duration:
+        await ctx.send(
+            "🚢 公會潛水艇提醒指令\n\n"
+            "用法：`!sub 時間`\n"
+            "例如：\n"
+            "`!sub 1d3h12min`\n"
+            "`!sub 2h`\n"
+            "`!sub 45min`\n\n"
+            "⏰ 時間單位：\n"
+            "- d = 天\n"
+            "- h = 小時\n"
+            "- min = 分鐘"
+        )
+        return
     """
     用法:
     !submarine 1d3h12min
@@ -183,7 +197,7 @@ async def submarine(ctx, *, duration: str):
         f"✅ 已設定潛水艇提醒\n"
         f"設定者：**{ctx.author.display_name}**\n"
         f"持續時間：`{duration}`\n"
-        f"提醒時間：**{end_time.strftime('%Y-%m-%d %H:%M:%S')}** (台灣時間)"
+        f"提醒時間：**{end_time.strftime('%Y-%m-%d %H:%M:%S')}** (台灣時間)\n"
         f"Job ID：`{job_id}`"
     )
 
