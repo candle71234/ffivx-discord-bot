@@ -18,8 +18,9 @@ TAIWAN_TZ = ZoneInfo("Asia/Taipei")
 
 # 從環境抓
 token = os.getenv("DISCORD_BOT_TOKEN")
-TARGET_CHANNEL_ID = int(os.getenv("TARGET_CHANNEL_ID"))
-TARGET_ROLE_ID = int(os.getenv("TARGET_ROLE_ID"))
+REMINDER_CHANNEL_ID = int(os.getenv("REMINDER_CHANNEL_ID"))
+DAILY_ROUTINE_ROLE_ID = int(os.getenv("DAILY_ROUTINE_ROLE_ID"))
+WEEKLY_ROUTINE_ROLE_ID= int(os.getenv("WEEKLY_ROUTINE_ROLE_ID"))
 
 
 intents = discord.Intents.default()
@@ -111,9 +112,9 @@ async def cactpot_task():
 
     if now.weekday() == 5:  # 星期六
         print("仙人仙彩提醒觸發")
-        channel = bot.get_channel(TARGET_CHANNEL_ID)
+        channel = bot.get_channel(REMINDER_CHANNEL_ID)
         if channel:
-            await channel.send(f"<@&{TARGET_ROLE_ID}> 記得去抽獎！")
+            await channel.send(f"<@&{WEEKLY_ROUTINE_ROLE_ID}> 記得去抽獎！")
 
 
 # 天書奇談 / 老主顧提醒：每週二 15:00
@@ -123,9 +124,9 @@ async def reset_notice_task():
 
     if now.weekday() == 1:  # 星期二
         print("天書奇談 / 老主顧提醒觸發")
-        channel = bot.get_channel(TARGET_CHANNEL_ID)
+        channel = bot.get_channel(REMINDER_CHANNEL_ID)
         if channel:
-            await channel.send(f"<@&{TARGET_ROLE_ID}> 天書奇談跟老主顧再一個小時刷新(測試)")
+            await channel.send(f"<@&{WEEKLY_ROUTINE_ROLE_ID}> 天書奇談跟老主顧再一個小時刷新(測試)")
 
 # 仙人仙彩提醒 排程
 @cactpot_task.before_loop
@@ -179,8 +180,8 @@ async def submarine(ctx, *, duration: str = None):
     task = asyncio.create_task(
         submarine_reminder_task(
             job_id=job_id,
-            channel_id=TARGET_CHANNEL_ID,
-            role_id=TARGET_ROLE_ID,
+            channel_id=REMINDER_CHANNEL_ID,
+            role_id=DAILY_ROUTINE_ROLE_ID,
             end_time=end_time,
             author_name=ctx.author.display_name
         )
@@ -267,19 +268,52 @@ async def subcancel(ctx, job_id: str):
         f"原定提醒時間：**{job['end_time'].strftime('%Y-%m-%d %H:%M:%S')}**"
     )
 
+# 潛艦ID自動拼寫
+async def submarine_job_autocomplete(
+    interaction: discord.Interaction,
+    current: str
+):
+    choices = []
+
+    for job_id, job in submarine_jobs.items():
+        label = f"{job['author']} | {job['end_time'].strftime('%m-%d %H:%M')}"
+
+        # 搜尋過濾（打字篩選）
+        if current.lower() in label.lower() or current.lower() in job_id.lower():
+            choices.append(
+                app_commands.Choice(
+                    name=label[:100],  # Discord 限制長度
+                    value=job_id
+                )
+            )
+
+    return choices[:25]  # Discord 最多 25 個選項
+
+
 ### 建立 /sub 指令集
 sub_group = app_commands.Group(name="sub", description="公會潛水艇提醒相關指令")
 
 # /sub add
 @sub_group.command(name="add", description="新增潛水艇提醒")
-@app_commands.describe(duration="提醒時間，例如 1d3h12min、2h、45min")
-async def sub_add(interaction: discord.Interaction, duration: str):
-    try:
-        delta = parse_duration(duration)
-    except ValueError as e:
-        await interaction.response.send_message(f"❌ {e}", ephemeral=True)
+@app_commands.describe(
+    days="天數",
+    hours="小時",
+    minutes="分鐘"
+)
+async def sub_add(
+    interaction: discord.Interaction,
+    days: app_commands.Range[int, 0, 30] = 0,
+    hours: app_commands.Range[int, 0, 23] = 0,
+    minutes: app_commands.Range[int, 0, 59] = 0
+):
+    if days == 0 and hours == 0 and minutes == 0:
+        await interaction.response.send_message(
+            "❌ 至少要填一個時間，不能全部都是 0。",
+            ephemeral=True
+        )
         return
 
+    delta = timedelta(days=days, hours=hours, minutes=minutes)
     now = datetime.now(TAIWAN_TZ)
     end_time = now + delta
 
@@ -288,8 +322,8 @@ async def sub_add(interaction: discord.Interaction, duration: str):
     task = asyncio.create_task(
         submarine_reminder_task(
             job_id=job_id,
-            channel_id=TARGET_CHANNEL_ID,
-            role_id=TARGET_ROLE_ID,
+            channel_id=REMINDER_CHANNEL_ID,
+            role_id=DAILY_ROUTINE_ROLE_ID,
             end_time=end_time,
             author_name=interaction.user.display_name
         )
@@ -300,13 +334,13 @@ async def sub_add(interaction: discord.Interaction, duration: str):
         "author": interaction.user.display_name,
         "created_at": now,
         "end_time": end_time,
-        "duration": duration,
+        "duration": f"{days}d {hours}h {minutes}min",
     }
 
     await interaction.response.send_message(
         f"✅ 已設定潛水艇提醒\n"
         f"設定者：**{interaction.user.display_name}**\n"
-        f"持續時間：`{duration}`\n"
+        f"持續時間：`{days}天 {hours}小時 {minutes}分鐘`\n"
         f"提醒時間：**{end_time.strftime('%Y-%m-%d %H:%M:%S')}** (台灣時間)\n"
         f"Job ID：`{job_id}`"
     )
@@ -357,7 +391,8 @@ async def sub_list(interaction: discord.Interaction):
 
 # /sub cancel
 @sub_group.command(name="cancel", description="取消指定的潛水艇提醒")
-@app_commands.describe(job_id="要取消的提醒 Job ID")
+@app_commands.describe(job_id="選擇要取消的提醒")
+@app_commands.autocomplete(job_id=submarine_job_autocomplete)
 async def sub_cancel(interaction: discord.Interaction, job_id: str):
     job = submarine_jobs.get(job_id)
 
