@@ -44,11 +44,11 @@ async def cactpot_task():
 
 
 # 天書奇談 / 老主顧提醒：每週二 15:00
-@tasks.loop(time=time(hour=8, minute=46, tzinfo=TAIWAN_TZ))
+@tasks.loop(time=time(hour=15, minute=00, tzinfo=TAIWAN_TZ))
 async def reset_notice_task():
     now = datetime.now(TAIWAN_TZ)
 
-    if now.weekday() == 3:  # 星期二
+    if now.weekday() == 1:  # 星期二
         print("天書奇談 / 老主顧提醒觸發")
         channel = bot.get_channel(TARGET_CHANNEL_ID)
         if channel:
