@@ -44,7 +44,7 @@ async def cactpot_task():
 
 
 # 天書奇談 / 老主顧提醒：每週二 15:00
-@tasks.loop(time=time(hour=8, minute=36, tzinfo=TAIWAN_TZ))
+@tasks.loop(time=time(hour=8, minute=46, tzinfo=TAIWAN_TZ))
 async def reset_notice_task():
     now = datetime.now(TAIWAN_TZ)
 
@@ -71,5 +71,7 @@ async def on_ready():
 
     if not cactpot_task.is_running():
         cactpot_task.start()
-
+    
+    if not reset_notice_task.is_running():
+        reset_notice_task.start()
 bot.run(token)
