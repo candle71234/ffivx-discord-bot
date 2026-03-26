@@ -7,8 +7,8 @@ from discord.ext import commands
 from discord.ext import tasks
 
 # 本地用
-from dotenv import load_dotenv
-load_dotenv()
+# from dotenv import load_dotenv
+# load_dotenv()
 
 # 抓時間 & 設定時區
 from datetime import time, datetime, timedelta
