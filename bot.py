@@ -5,10 +5,11 @@ import asyncio
 import discord
 from discord.ext import commands
 from discord.ext import tasks
+from discord import app_commands
 
 # 本地用
-# from dotenv import load_dotenv
-# load_dotenv()
+from dotenv import load_dotenv
+load_dotenv()
 
 # 抓時間 & 設定時區
 from datetime import time, datetime, timedelta
@@ -265,6 +266,121 @@ async def subcancel(ctx, job_id: str):
         f"設定者：**{job['author']}**\n"
         f"原定提醒時間：**{job['end_time'].strftime('%Y-%m-%d %H:%M:%S')}**"
     )
+
+### 建立 /sub 指令集
+sub_group = app_commands.Group(name="sub", description="公會潛水艇提醒相關指令")
+
+# /sub add
+@sub_group.command(name="add", description="新增潛水艇提醒")
+@app_commands.describe(duration="提醒時間，例如 1d3h12min、2h、45min")
+async def sub_add(interaction: discord.Interaction, duration: str):
+    try:
+        delta = parse_duration(duration)
+    except ValueError as e:
+        await interaction.response.send_message(f"❌ {e}", ephemeral=True)
+        return
+
+    now = datetime.now(TAIWAN_TZ)
+    end_time = now + delta
+
+    job_id = f"{interaction.guild.id}-{interaction.channel.id}-{interaction.user.id}-{int(now.timestamp())}"
+
+    task = asyncio.create_task(
+        submarine_reminder_task(
+            job_id=job_id,
+            channel_id=TARGET_CHANNEL_ID,
+            role_id=TARGET_ROLE_ID,
+            end_time=end_time,
+            author_name=interaction.user.display_name
+        )
+    )
+
+    submarine_jobs[job_id] = {
+        "task": task,
+        "author": interaction.user.display_name,
+        "created_at": now,
+        "end_time": end_time,
+        "duration": duration,
+    }
+
+    await interaction.response.send_message(
+        f"✅ 已設定潛水艇提醒\n"
+        f"設定者：**{interaction.user.display_name}**\n"
+        f"持續時間：`{duration}`\n"
+        f"提醒時間：**{end_time.strftime('%Y-%m-%d %H:%M:%S')}** (台灣時間)\n"
+        f"Job ID：`{job_id}`"
+    )
+
+# /sub list
+@sub_group.command(name="list", description="查看目前所有潛水艇提醒")
+async def sub_list(interaction: discord.Interaction):
+    if not submarine_jobs:
+        await interaction.response.send_message("目前沒有任何潛水艇提醒。", ephemeral=True)
+        return
+
+    now = datetime.now(TAIWAN_TZ)
+    lines = []
+
+    for index, (job_id, job) in enumerate(submarine_jobs.items(), start=1):
+        remaining = job["end_time"] - now
+        total_seconds = int(remaining.total_seconds())
+
+        if total_seconds < 0:
+            remaining_text = "即將觸發"
+        else:
+            days = total_seconds // 86400
+            hours = (total_seconds % 86400) // 3600
+            minutes = (total_seconds % 3600) // 60
+
+            parts = []
+            if days > 0:
+                parts.append(f"{days}天")
+            if hours > 0:
+                parts.append(f"{hours}小時")
+            if minutes > 0:
+                parts.append(f"{minutes}分鐘")
+            if not parts:
+                parts.append("1分鐘內")
+
+            remaining_text = "".join(parts)
+
+        lines.append(
+            f"{index}. 設定者：{job['author']}\n"
+            f"   時長：{job['duration']}\n"
+            f"   到期時間：{job['end_time'].strftime('%Y-%m-%d %H:%M:%S')}\n"
+            f"   剩餘時間：{remaining_text}\n"
+            f"   Job ID：`{job_id}`"
+        )
+
+    message = "目前潛水艇提醒如下：\n\n" + "\n\n".join(lines)
+    await interaction.response.send_message(message, ephemeral=True)
+
+# /sub cancel
+@sub_group.command(name="cancel", description="取消指定的潛水艇提醒")
+@app_commands.describe(job_id="要取消的提醒 Job ID")
+async def sub_cancel(interaction: discord.Interaction, job_id: str):
+    job = submarine_jobs.get(job_id)
+
+    if job is None:
+        await interaction.response.send_message(
+            "❌ 找不到這個提醒 Job ID。請先用 `/sub list` 查看。",
+            ephemeral=True
+        )
+        return
+
+    task = job["task"]
+    task.cancel()
+
+    submarine_jobs.pop(job_id, None)
+
+    await interaction.response.send_message(
+        f"✅ 已取消潛水艇提醒\n"
+        f"設定者：**{job['author']}**\n"
+        f"原定提醒時間：**{job['end_time'].strftime('%Y-%m-%d %H:%M:%S')}**",
+        ephemeral=True
+    )
+
+bot.tree.add_command(sub_group)
 
 
 @bot.event
