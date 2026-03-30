@@ -2,31 +2,21 @@ import os
 import re
 import json
 
-DATA_DIR = "/app/data"
-os.makedirs(DATA_DIR, exist_ok=True)
-
-SUBMARINE_DATA_FILE = os.path.join(DATA_DIR, "submarine_jobs.json")
-
 import discord
-from discord.ext import commands
-from discord.ext import tasks
+from discord.ext import commands, tasks
 from discord import app_commands
-
-# 本地用
-# from dotenv import load_dotenv
-# load_dotenv()
 
 # 抓時間 & 設定時區
 from datetime import time, datetime, timedelta
-from zoneinfo import ZoneInfo
-TAIWAN_TZ = ZoneInfo("Asia/Taipei")
 
-# 從環境抓
-token = os.getenv("DISCORD_BOT_TOKEN")
-REMINDER_CHANNEL_ID = int(os.getenv("REMINDER_CHANNEL_ID"))
-DAILY_ROUTINE_ROLE_ID = int(os.getenv("DAILY_ROUTINE_ROLE_ID"))
-WEEKLY_ROUTINE_ROLE_ID= int(os.getenv("WEEKLY_ROUTINE_ROLE_ID"))
-
+from config import (
+    TAIWAN_TZ,
+    DISCORD_BOT_TOKEN,
+    REMINDER_CHANNEL_ID,
+    DAILY_ROUTINE_ROLE_ID,
+    WEEKLY_ROUTINE_ROLE_ID,
+    SUBMARINE_DATA_FILE,
+)
 
 intents = discord.Intents.default()
 intents.message_content = True
@@ -35,9 +25,7 @@ intents.message_content = True
 bot = commands.Bot(command_prefix="!", intents=intents)
 
 
-# 用來保存目前排程中的潛水艇提醒
-# SUBMARINE_DATA_FILE = "submarine_jobs.json"
-SUBMARINE_DATA_FILE = "/app/data/submarine_jobs.json"
+# 潛水艇格式
 submarine_jobs = {}
 
 
@@ -515,4 +503,4 @@ async def on_ready():
     if not submarine_check_task.is_running():
         submarine_check_task.start()
 
-bot.run(token)
+bot.run(DISCORD_BOT_TOKEN)
