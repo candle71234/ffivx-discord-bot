@@ -74,7 +74,7 @@ all         # 全部
 pip install discord.py python-dotenv
 ```
 
-### 環境變數
+### 環境變數(放在.env中)
 ```
 DISCORD_BOT_TOKEN=你的Token
 REMINDER_CHANNEL_ID=頻道ID
@@ -97,6 +97,7 @@ project/
 ├── config.py
 ├── farm_system.py
 ├── farm_seeds.py
+├── .env(需自行建立)
 └── data/
     ├── submarine_jobs.json
     └── farm_data.json
